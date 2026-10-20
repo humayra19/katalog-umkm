@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import TombolWhatsApp from "@/components/TombolWhatsApp";
 import TombolBagikan from "@/components/TombolBagikan";
 import TombolFavoritDetail from "@/components/TombolFavoritDetail";
+import CatatTerakhirDilihat from "@/components/CatatTerakhirDilihat";
 import GaleriFoto from "@/components/GaleriFoto";
 import KartuProduk from "@/components/KartuProduk";
 import { createServerClient } from "@/lib/supabase/server";
 import { cariProdukContoh } from "@/lib/data-contoh";
 import { formatRupiah } from "@/lib/format";
 import { toko } from "@/lib/toko";
+import { apakahProdukAktif } from "@/lib/status-produk";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +35,8 @@ export async function generateMetadata({ params }) {
     produk = cariProdukContoh(id);
   }
 
-  if (!produk) {
+  // Jika produk tidak ada atau nonaktif (US-32)
+  if (!produk || !apakahProdukAktif(produk)) {
     return {
       title: `Produk Tidak Ditemukan - ${toko.nama}`,
       description: "Produk yang Anda cari tidak tersedia di katalog.",
@@ -92,7 +95,7 @@ export default async function HalamanDetailProduk({ params }) {
         .eq("kategori", data.kategori)
         .neq("id", id)
         .limit(4);
-      produkTerkait = terkait || [];
+      produkTerkait = (terkait || []).filter(apakahProdukAktif);
     }
   } catch {
     // Abaikan jika database error
@@ -102,7 +105,8 @@ export default async function HalamanDetailProduk({ params }) {
     produk = cariProdukContoh(id);
   }
 
-  if (!produk) {
+  // US-32: Jika produk tidak ditemukan atau dinonaktifkan, panggil notFound()
+  if (!produk || !apakahProdukAktif(produk)) {
     notFound();
   }
 
@@ -125,6 +129,9 @@ export default async function HalamanDetailProduk({ params }) {
 
   return (
     <div className="py-8 md:py-12">
+      {/* US-36: Rekam ke riwayat terakhir dilihat di browser */}
+      <CatatTerakhirDilihat produk={produk} />
+
       <article className="grid gap-8 md:grid-cols-2">
         {/* US-18: Komponen Galeri Foto */}
         <GaleriFoto

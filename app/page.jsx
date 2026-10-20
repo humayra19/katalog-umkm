@@ -1,7 +1,9 @@
 import Link from "next/link";
 import KartuProduk from "@/components/KartuProduk";
+import TerakhirDilihat from "@/components/TerakhirDilihat";
 import { toko } from "@/lib/toko";
 import { createServerClient } from "@/lib/supabase/server";
+import { apakahProdukAktif } from "@/lib/status-produk";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +68,8 @@ export default async function HalamanKatalog({ searchParams }) {
     if (error) {
       pesanError = error.message;
     } else {
-      daftarProduk = data || [];
+      // US-32: Saring produk yang aktif saja untuk katalog publik
+      daftarProduk = (data || []).filter(apakahProdukAktif);
       totalProduk = count || 0;
       totalHalaman = Math.max(1, Math.ceil(totalProduk / ITEMS_PER_PAGE));
     }
@@ -223,6 +226,9 @@ export default async function HalamanKatalog({ searchParams }) {
           </>
         )}
       </section>
+
+      {/* US-36: Bagian Terakhir Dilihat di Beranda */}
+      <TerakhirDilihat />
     </>
   );
 }

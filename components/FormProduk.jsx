@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import Input from "@/components/Input";
+import { useActionState, useState, useEffect } from "react";
 import Tombol from "@/components/Tombol";
 import { buatDeskripsiAI } from "@/app/admin/actions";
 
 // Dipakai untuk tambah produk (US-08) dan ubah produk (US-09).
-// Mendukung upload file foto Supabase Storage (US-29) dan pilihan kategori (US-31).
+// Mendukung upload foto (US-29), pilihan kategori (US-31), dan validasi server-side per-field (US-34).
 export default function FormProduk({
   produk = {},
   labelTombol,
@@ -14,13 +13,30 @@ export default function FormProduk({
   geminiTersedia = true,
   daftarKategori = [],
 }) {
+  const [state, formAction, isPending] = useActionState(action, null);
+
   const [nama, setNama] = useState(produk.nama || "");
+  const [harga, setHarga] = useState(produk.harga !== undefined ? String(produk.harga) : "");
   const [kategori, setKategori] = useState(produk.kategori || "");
   const [deskripsi, setDeskripsi] = useState(produk.deskripsi || "");
   const [fotoUrl, setFotoUrl] = useState(produk.foto_url || "");
   const [previewFoto, setPreviewFoto] = useState(produk.foto_url || "");
   const [sedangMembuatAI, setSedangMembuatAI] = useState(false);
   const [pesanErrorAI, setPesanErrorAI] = useState("");
+
+  // Pertahankan nilai input jika terjadi error dari server (US-34)
+  useEffect(() => {
+    if (state?.values) {
+      if (state.values.nama !== undefined) setNama(state.values.nama);
+      if (state.values.harga !== undefined) setHarga(state.values.harga);
+      if (state.values.kategori !== undefined) setKategori(state.values.kategori);
+      if (state.values.deskripsi !== undefined) setDeskripsi(state.values.deskripsi);
+      if (state.values.foto_url !== undefined) {
+        setFotoUrl(state.values.foto_url);
+        if (state.values.foto_url) setPreviewFoto(state.values.foto_url);
+      }
+    }
+  }, [state]);
 
   const handleBuatDeskripsiAI = async () => {
     if (!geminiTersedia) {
@@ -67,28 +83,59 @@ export default function FormProduk({
 
   return (
     <form
-      action={action}
+      action={formAction}
       encType="multipart/form-data"
       className="flex max-w-xl flex-col gap-4"
     >
       {produk.id && <input type="hidden" name="id" value={produk.id} />}
 
-      <Input
-        label="Nama produk"
-        name="nama"
-        value={nama}
-        onChange={(e) => setNama(e.target.value)}
-        required
-      />
+      {/* Pesan Error Global (jika ada) */}
+      {state?.error && (
+        <div className="rounded-xl border border-bahaya/40 bg-bahaya/10 p-4 text-sm font-semibold text-bahaya">
+          {state.error}
+        </div>
+      )}
 
-      <Input
-        label="Harga (Rp)"
-        name="harga"
-        type="number"
-        min="0"
-        defaultValue={produk.harga}
-        required
-      />
+      {/* Input Nama Produk */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="nama" className="text-sm font-semibold text-teks">
+          Nama produk <span className="text-bahaya">*</span>
+        </label>
+        <input
+          id="nama"
+          name="nama"
+          type="text"
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          className={`w-full rounded-lg border bg-latar px-3 py-2.5 text-base text-teks placeholder:text-teks-lembut focus:outline-none ${
+            state?.errors?.nama ? "border-bahaya focus:border-bahaya" : "border-garis focus:border-utama"
+          }`}
+        />
+        {state?.errors?.nama && (
+          <p className="text-xs font-semibold text-bahaya">{state.errors.nama}</p>
+        )}
+      </div>
+
+      {/* Input Harga Produk */}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="harga" className="text-sm font-semibold text-teks">
+          Harga (Rp) <span className="text-bahaya">*</span>
+        </label>
+        <input
+          id="harga"
+          name="harga"
+          type="number"
+          min="0"
+          value={harga}
+          onChange={(e) => setHarga(e.target.value)}
+          className={`w-full rounded-lg border bg-latar px-3 py-2.5 text-base text-teks placeholder:text-teks-lembut focus:outline-none ${
+            state?.errors?.harga ? "border-bahaya focus:border-bahaya" : "border-garis focus:border-utama"
+          }`}
+        />
+        {state?.errors?.harga && (
+          <p className="text-xs font-semibold text-bahaya">{state.errors.harga}</p>
+        )}
+      </div>
 
       {/* US-31: Pilihan Kategori dari Data Kategori */}
       <div className="flex flex-col gap-1.5">
@@ -111,11 +158,13 @@ export default function FormProduk({
             ))}
           </select>
         ) : (
-          <Input
-            label="Kategori"
+          <input
+            id="kategori"
             name="kategori"
+            type="text"
             value={kategori}
             onChange={(e) => setKategori(e.target.value)}
+            className="w-full rounded-lg border border-garis bg-latar px-3 py-2.5 text-base text-teks placeholder:text-teks-lembut focus:border-utama focus:outline-none"
           />
         )}
       </div>
@@ -168,6 +217,7 @@ export default function FormProduk({
         </div>
       </div>
 
+      {/* Input Deskripsi */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <label htmlFor="deskripsi" className="text-sm font-semibold text-teks">
@@ -203,8 +253,8 @@ export default function FormProduk({
         />
       </div>
 
-      <Tombol type="submit" className="mt-2">
-        {labelTombol}
+      <Tombol type="submit" disabled={isPending} className="mt-2">
+        {isPending ? "Menyimpan..." : labelTombol}
       </Tombol>
     </form>
   );
