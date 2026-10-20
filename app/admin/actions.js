@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  simpanKategoriBaru,
+  perbaruiKategori,
+  hapusKategori as hapusKategoriDb,
+} from "@/lib/kategori";
 
 export async function login(prevStateOrFormData, maybeFormData) {
   const formData =
@@ -94,6 +99,56 @@ export async function gantiPassword(prevStateOrFormData, maybeFormData) {
   return { sukses: "Password berhasil diganti." };
 }
 
+// US-29: Helper untuk upload foto ke Supabase Storage dari server
+async function prosesUploadFoto(supabase, fileFoto, fotoUrlLama) {
+  if (!fileFoto || !(fileFoto instanceof File) || fileFoto.size === 0) {
+    return fotoUrlLama || null;
+  }
+
+  // Validasi tipe file gambar
+  const tipeValid = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/svg+xml",
+  ];
+  if (!tipeValid.includes(fileFoto.type) && !fileFoto.type.startsWith("image/")) {
+    throw new Error(
+      "File yang diunggah harus berupa gambar (JPG, PNG, WebP, GIF, atau SVG)."
+    );
+  }
+
+  // Validasi ukuran maksimal 5 MB
+  const MAX_SIZE = 5 * 1024 * 1024;
+  if (fileFoto.size > MAX_SIZE) {
+    throw new Error("Ukuran file foto maksimal adalah 5 MB.");
+  }
+
+  const ekstensi = fileFoto.name.split(".").pop() || "jpg";
+  const namaFile = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ekstensi}`;
+  const buffer = Buffer.from(await fileFoto.arrayBuffer());
+
+  const { error: uploadError } = await supabase.storage
+    .from("produk")
+    .upload(namaFile, buffer, {
+      contentType: fileFoto.type,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(
+      `Gagal mengunggah foto ke Supabase Storage: ${uploadError.message}`
+    );
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("produk").getPublicUrl(namaFile);
+
+  return publicUrl;
+}
+
 export async function tambahProduk(formData) {
   const supabase = await createAdminClient();
 
@@ -111,8 +166,9 @@ export async function tambahProduk(formData) {
   const hargaRaw = formData.get("harga")?.toString().trim();
   const harga = parseInt(hargaRaw, 10);
   const kategori = formData.get("kategori")?.toString().trim() || null;
-  const foto_url = formData.get("foto_url")?.toString().trim() || null;
+  let foto_url = formData.get("foto_url")?.toString().trim() || null;
   const deskripsi = formData.get("deskripsi")?.toString().trim() || null;
+  const fileFoto = formData.get("file_foto");
 
   if (!nama) {
     throw new Error("Nama produk wajib diisi.");
@@ -121,6 +177,9 @@ export async function tambahProduk(formData) {
   if (isNaN(harga) || harga < 0) {
     throw new Error("Harga harus berupa angka dan tidak boleh negatif.");
   }
+
+  // US-29: Upload foto ke Supabase Storage jika ada file yang diunggah
+  foto_url = await prosesUploadFoto(supabase, fileFoto, foto_url);
 
   const { error } = await supabase.from("produk").insert({
     nama,
@@ -157,8 +216,9 @@ export async function ubahProduk(formData) {
   const hargaRaw = formData.get("harga")?.toString().trim();
   const harga = parseInt(hargaRaw, 10);
   const kategori = formData.get("kategori")?.toString().trim() || null;
-  const foto_url = formData.get("foto_url")?.toString().trim() || null;
+  let foto_url = formData.get("foto_url")?.toString().trim() || null;
   const deskripsi = formData.get("deskripsi")?.toString().trim() || null;
+  const fileFoto = formData.get("file_foto");
 
   if (!id) {
     throw new Error("ID produk tidak valid.");
@@ -171,6 +231,9 @@ export async function ubahProduk(formData) {
   if (isNaN(harga) || harga < 0) {
     throw new Error("Harga harus berupa angka dan tidak boleh negatif.");
   }
+
+  // US-29: Upload foto ke Supabase Storage jika ada file baru yang diunggah
+  foto_url = await prosesUploadFoto(supabase, fileFoto, foto_url);
 
   const { error } = await supabase
     .from("produk")
@@ -218,6 +281,68 @@ export async function hapusProduk(formData) {
     throw new Error(error.message);
   }
 
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+// US-31: Server Actions untuk Kelola Kategori
+export async function tambahKategoriAction(formData) {
+  const supabase = await createAdminClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Unauthorized: Anda harus masuk terlebih dahulu.");
+  }
+
+  const nama = formData.get("nama")?.toString().trim();
+  await simpanKategoriBaru(nama);
+
+  revalidatePath("/admin/kategori");
+  revalidatePath("/admin/produk/baru");
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function ubahKategoriAction(formData) {
+  const supabase = await createAdminClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Unauthorized: Anda harus masuk terlebih dahulu.");
+  }
+
+  const namaLama = formData.get("nama_lama")?.toString().trim();
+  const namaBaru = formData.get("nama_baru")?.toString().trim();
+  await perbaruiKategori(namaLama, namaBaru);
+
+  revalidatePath("/admin/kategori");
+  revalidatePath("/admin/produk/baru");
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+export async function hapusKategoriAction(formData) {
+  const supabase = await createAdminClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Unauthorized: Anda harus masuk terlebih dahulu.");
+  }
+
+  const nama = formData.get("nama")?.toString().trim();
+  await hapusKategoriDb(nama);
+
+  revalidatePath("/admin/kategori");
+  revalidatePath("/admin/produk/baru");
   revalidatePath("/admin");
   revalidatePath("/");
 }
