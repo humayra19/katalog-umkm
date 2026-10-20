@@ -5,13 +5,19 @@ import { createServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+const ITEMS_PER_PAGE = 12;
+
 export default async function HalamanKatalog({ searchParams }) {
   const params = (await searchParams) || {};
   const kategoriAktif = params.kategori || "";
   const kataKunci = params.cari || "";
+  const urutanAktif = params.urutan || "terbaru";
+  const halaman = Math.max(1, parseInt(params.halaman, 10) || 1);
 
   let daftarProduk = [];
   let daftarKategori = [];
+  let totalProduk = 0;
+  let totalHalaman = 1;
   let pesanError = null;
 
   try {
@@ -29,8 +35,8 @@ export default async function HalamanKatalog({ searchParams }) {
       ];
     }
 
-    // Query produk dengan filter kategori dan pencarian nama
-    let query = supabase.from("produk").select("*");
+    // Query produk dengan filter, pencarian, urutan, dan paginasi di database
+    let query = supabase.from("produk").select("*", { count: "exact" });
 
     if (kategoriAktif && kategoriAktif !== "Semua") {
       query = query.eq("kategori", kategoriAktif);
@@ -40,17 +46,49 @@ export default async function HalamanKatalog({ searchParams }) {
       query = query.ilike("nama", `%${kataKunci.trim()}%`);
     }
 
-    query = query.order("created_at", { ascending: false });
+    // Terapkan urutan pada query
+    if (urutanAktif === "termurah") {
+      query = query.order("harga", { ascending: true });
+    } else if (urutanAktif === "termahal") {
+      query = query.order("harga", { ascending: false });
+    } else {
+      // default: terbaru
+      query = query.order("created_at", { ascending: false });
+    }
 
-    const { data, error } = await query;
+    // Terapkan pembatasan halaman di query database (US-16)
+    const from = (halaman - 1) * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE - 1;
+    query = query.range(from, to);
+
+    const { data, count, error } = await query;
 
     if (error) {
       pesanError = error.message;
     } else {
       daftarProduk = data || [];
+      totalProduk = count || 0;
+      totalHalaman = Math.max(1, Math.ceil(totalProduk / ITEMS_PER_PAGE));
     }
   } catch (err) {
     pesanError = err.message || "Gagal mengambil data produk dari database.";
+  }
+
+  // Fungsi pembantu membuat URL query
+  function buildUrl({ newKat, newCari, newUrut, newHal }) {
+    const p = new URLSearchParams();
+    const kat = newKat !== undefined ? newKat : kategoriAktif;
+    const c = newCari !== undefined ? newCari : kataKunci;
+    const u = newUrut !== undefined ? newUrut : urutanAktif;
+    const h = newHal !== undefined ? newHal : halaman;
+
+    if (kat && kat !== "Semua") p.set("kategori", kat);
+    if (c && c.trim()) p.set("cari", c.trim());
+    if (u && u !== "terbaru") p.set("urutan", u);
+    if (h && h > 1) p.set("halaman", h.toString());
+
+    const qs = p.toString();
+    return qs ? `/?${qs}` : "/";
   }
 
   return (
@@ -69,8 +107,8 @@ export default async function HalamanKatalog({ searchParams }) {
             Produk kami
           </h2>
 
-          {/* Form Pencarian */}
-          <form method="GET" action="/" className="flex gap-2">
+          {/* Form Pencarian & Urutan (US-11 & US-15) */}
+          <form method="GET" action="/" className="flex flex-wrap items-center gap-2">
             {kategoriAktif && kategoriAktif !== "Semua" && (
               <input type="hidden" name="kategori" value={kategoriAktif} />
             )}
@@ -79,18 +117,27 @@ export default async function HalamanKatalog({ searchParams }) {
               name="cari"
               defaultValue={kataKunci}
               placeholder="Cari nama produk..."
-              className="w-full rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks placeholder:text-teks-lembut focus:border-utama focus:outline-none sm:w-60"
+              className="rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks placeholder:text-teks-lembut focus:border-utama focus:outline-none sm:w-56"
             />
+            <select
+              name="urutan"
+              defaultValue={urutanAktif}
+              className="rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks focus:border-utama focus:outline-none"
+            >
+              <option value="terbaru">Terbaru</option>
+              <option value="termurah">Termurah</option>
+              <option value="termahal">Termahal</option>
+            </select>
             <button
               type="submit"
               className="inline-flex items-center justify-center rounded-lg bg-utama px-4 py-2 text-sm font-semibold text-white hover:bg-utama-gelap"
             >
-              Cari
+              Terapkan
             </button>
-            {(kataKunci || (kategoriAktif && kategoriAktif !== "Semua")) && (
+            {(kataKunci || (kategoriAktif && kategoriAktif !== "Semua") || urutanAktif !== "terbaru") && (
               <Link
                 href="/"
-                className="inline-flex items-center justify-center rounded-lg border border-garis bg-latar px-3 py-2 text-sm font-semibold text-teks hover:border-utama hover:text-utama"
+                className="inline-flex items-center justify-center rounded-lg border border-garis bg-latar px-4 py-2 text-sm font-semibold text-teks hover:border-utama hover:text-utama"
               >
                 Reset
               </Link>
@@ -98,28 +145,17 @@ export default async function HalamanKatalog({ searchParams }) {
           </form>
         </div>
 
-        {/* Filter Kategori */}
+        {/* Filter Kategori (US-11) */}
         {daftarKategori.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {daftarKategori.map((kategori) => {
               const isActive =
                 (!kategoriAktif && kategori === "Semua") || kategoriAktif === kategori;
 
-              const href =
-                kategori === "Semua"
-                  ? kataKunci
-                    ? `/?cari=${encodeURIComponent(kataKunci)}`
-                    : "/"
-                  : kataKunci
-                  ? `/?kategori=${encodeURIComponent(kategori)}&cari=${encodeURIComponent(
-                      kataKunci
-                    )}`
-                  : `/?kategori=${encodeURIComponent(kategori)}`;
-
               return (
                 <Link
                   key={kategori}
-                  href={href}
+                  href={buildUrl({ newKat: kategori, newHal: 1 })}
                   className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
                     isActive
                       ? "bg-utama text-white"
@@ -141,11 +177,48 @@ export default async function HalamanKatalog({ searchParams }) {
         ) : daftarProduk.length === 0 ? (
           <p className="py-8 text-center text-teks-lembut">Belum ada produk</p>
         ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            {daftarProduk.map((produk) => (
-              <KartuProduk key={produk.id} produk={produk} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+              {daftarProduk.map((produk) => (
+                <KartuProduk key={produk.id} produk={produk} />
+              ))}
+            </div>
+
+            {/* Paginasi (US-16) */}
+            {totalHalaman > 1 && (
+              <nav aria-label="Navigasi halaman" className="flex items-center justify-center gap-2 pt-6">
+                {halaman > 1 ? (
+                  <Link
+                    href={buildUrl({ newHal: halaman - 1 })}
+                    className="rounded-lg border border-garis bg-latar px-4 py-2 text-sm font-semibold text-teks hover:border-utama hover:text-utama"
+                  >
+                    Sebelumnya
+                  </Link>
+                ) : (
+                  <span className="cursor-not-allowed rounded-lg border border-garis bg-permukaan px-4 py-2 text-sm font-semibold text-teks-lembut opacity-50">
+                    Sebelumnya
+                  </span>
+                )}
+
+                <span className="px-3 py-2 text-sm font-medium text-teks-lembut">
+                  Halaman {halaman} dari {totalHalaman}
+                </span>
+
+                {halaman < totalHalaman ? (
+                  <Link
+                    href={buildUrl({ newHal: halaman + 1 })}
+                    className="rounded-lg border border-garis bg-latar px-4 py-2 text-sm font-semibold text-teks hover:border-utama hover:text-utama"
+                  >
+                    Selanjutnya
+                  </Link>
+                ) : (
+                  <span className="cursor-not-allowed rounded-lg border border-garis bg-permukaan px-4 py-2 text-sm font-semibold text-teks-lembut opacity-50">
+                    Selanjutnya
+                  </span>
+                )}
+              </nav>
+            )}
+          </>
         )}
       </section>
     </>

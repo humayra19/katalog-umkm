@@ -221,3 +221,70 @@ export async function hapusProduk(formData) {
   revalidatePath("/admin");
   revalidatePath("/");
 }
+
+
+export async function buatDeskripsiAI(nama, kategori) {
+  const supabase = await createAdminClient();
+
+  // Wajib periksa bahwa admin sudah login di server
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { error: "Unauthorized: Anda harus masuk terlebih dahulu." };
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return { error: "GEMINI_API_KEY belum diatur di environment variable." };
+  }
+
+  if (!nama || !nama.trim()) {
+    return { error: "Nama produk harus diisi terlebih dahulu." };
+  }
+
+  const prompt = `Buatlah deskripsi produk yang menarik, singkat (1 sampai 2 kalimat), dan menggugah minat pembeli untuk toko online UMKM.
+Nama produk: "${nama.trim()}"
+Kategori: "${kategori?.trim() || "Umum"}"
+Berikan HANYA teks deskripsi tanpa tanda kutip atau format tambahan.`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        error:
+          data?.error?.message ||
+          `Gagal memanggil Gemini API (status ${response.status}).`,
+      };
+    }
+
+    const hasil =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+
+    if (!hasil) {
+      return { error: "Tidak ada respons deskripsi dari AI." };
+    }
+
+    return { deskripsi: hasil };
+  } catch (err) {
+    return { error: err.message || "Gagal menghubungi Gemini API." };
+  }
+}

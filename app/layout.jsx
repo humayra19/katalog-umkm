@@ -6,6 +6,7 @@ import { toko } from "@/lib/toko";
 export const metadata = {
   title: toko.nama,
   description: toko.tagline,
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }) {
