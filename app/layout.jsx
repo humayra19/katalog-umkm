@@ -2,6 +2,8 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { toko } from "@/lib/toko";
+import { KeranjangProvider } from "@/components/KeranjangContext";
+import ModalKeranjang from "@/components/ModalKeranjang";
 
 export const metadata = {
   title: toko.nama,
@@ -21,9 +23,12 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body className="flex min-h-screen flex-col font-sans antialiased">
-        <Header />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4">{children}</main>
-        <Footer />
+        <KeranjangProvider>
+          <Header />
+          <main className="mx-auto w-full max-w-5xl flex-1 px-4">{children}</main>
+          <Footer />
+          <ModalKeranjang />
+        </KeranjangProvider>
       </body>
     </html>
   );

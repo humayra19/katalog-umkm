@@ -3,24 +3,54 @@
 import { useState } from "react";
 import { toko } from "@/lib/toko";
 import { formatRupiah } from "@/lib/format";
+import { useKeranjang } from "@/components/KeranjangContext";
 
 export default function TombolWhatsApp({
   produk,
   daftarVarian = ["Standar", "Kemasan Besar", "Ekstra / Spesial"],
+  stokHabis = false,
 }) {
+  const { tambahItem } = useKeranjang();
+
   if (!produk) {
     return null;
   }
 
+  const isHabis =
+    stokHabis ||
+    produk.stok === 0 ||
+    produk.stok === "0" ||
+    produk.status === "habis" ||
+    produk.status_stok === "habis" ||
+    produk.is_habis === true;
+
   const [jumlah, setJumlah] = useState(1);
   const [varian, setVarian] = useState(daftarVarian[0] || "Standar");
 
-  const totalHarga = (produk.harga || 0) * jumlah;
+  const hargaSatuan = produk.harga_diskon || produk.harga || 0;
+  const totalHarga = hargaSatuan * jumlah;
   const nomor = String(toko.nomorWhatsApp || "").replace(/\D/g, "");
 
   const infoVarian = varian && varian !== "Standar" ? ` (Varian: ${varian})` : "";
   const pesan = `Halo, saya ingin memesan ${produk.nama}${infoVarian} sebanyak ${jumlah} buah dengan total harga ${formatRupiah(totalHarga)}.`;
   const href = `https://wa.me/${nomor}?text=${encodeURIComponent(pesan)}`;
+
+  if (isHabis) {
+    return (
+      <div className="flex flex-col gap-2">
+        <button
+          type="button"
+          disabled
+          className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg border border-garis bg-permukaan px-5 py-3 font-semibold text-teks-lembut opacity-60 sm:w-auto"
+        >
+          Stok Habis
+        </button>
+        <p className="text-xs text-teks-lembut">
+          Produk ini sedang tidak tersedia untuk dipesan.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,14 +114,25 @@ export default function TombolWhatsApp({
         <p className="text-sm text-teks-lembut">
           Total: <span className="font-bold text-harga">{formatRupiah(totalHarga)}</span>
         </p>
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex w-full items-center justify-center rounded-lg bg-utama px-5 py-3 font-semibold text-white hover:bg-utama-gelap sm:w-auto"
-        >
-          Pesan via WhatsApp
-        </a>
+
+        <div className="flex flex-wrap gap-3">
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex flex-1 items-center justify-center rounded-lg bg-utama px-5 py-3 font-semibold text-white hover:bg-utama-gelap sm:flex-initial"
+          >
+            Pesan via WhatsApp
+          </a>
+
+          <button
+            type="button"
+            onClick={() => tambahItem(produk, jumlah, varian)}
+            className="inline-flex flex-1 items-center justify-center rounded-lg border border-garis bg-latar px-5 py-3 font-semibold text-teks hover:border-utama hover:text-utama sm:flex-initial"
+          >
+            + Keranjang
+          </button>
+        </div>
       </div>
     </div>
   );
