@@ -222,7 +222,6 @@ export async function hapusProduk(formData) {
   revalidatePath("/");
 }
 
-
 export async function buatDeskripsiAI(nama, kategori) {
   const supabase = await createAdminClient();
 
@@ -236,9 +235,12 @@ export async function buatDeskripsiAI(nama, kategori) {
     return { error: "Unauthorized: Anda harus masuk terlebih dahulu." };
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
-    return { error: "GEMINI_API_KEY belum diatur di environment variable." };
+    return {
+      error:
+        "Kunci GEMINI_API_KEY belum terpasang di file .env.local. Tambahkan variabel GEMINI_API_KEY=<kunci_api_anda> pada file .env.local untuk mengaktifkan fitur ini.",
+    };
   }
 
   if (!nama || !nama.trim()) {
@@ -250,41 +252,66 @@ Nama produk: "${nama.trim()}"
 Kategori: "${kategori?.trim() || "Umum"}"
 Berikan HANYA teks deskripsi tanpa tanda kutip atau format tambahan.`;
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
-      }),
-    });
+  // Daftar model dengan tanda hubung standar (hyphen/minus ASCII -)
+  const candidateModels = [
+    process.env.GEMINI_MODEL?.trim(),
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-1.5-flash",
+  ].filter(Boolean);
 
-    const data = await response.json();
+  const modelsToTry = [...new Set(candidateModels)];
+  let lastError = null;
 
-    if (!response.ok) {
-      return {
-        error:
-          data?.error?.message ||
-          `Gagal memanggil Gemini API (status ${response.status}).`,
-      };
+  for (const model of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        lastError =
+          errData?.error?.message ||
+          `Gagal memanggil model ${model} (status ${response.status}).`;
+        // Jika 404 (model tidak ditemukan atau belum dibuka untuk akun ini), coba model berikutnya
+        if (response.status === 404) {
+          continue;
+        }
+        return { error: lastError };
+      }
+
+      const data = await response.json();
+      const hasil =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+
+      if (!hasil) {
+        lastError = "Gemini tidak mengembalikan teks deskripsi.";
+        continue;
+      }
+
+      return { deskripsi: hasil };
+    } catch (err) {
+      lastError =
+        err.message ||
+        "Terjadi kesalahan saat menghubungi Gemini API. Pastikan perangkat terhubung ke internet.";
     }
-
-    const hasil =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
-
-    if (!hasil) {
-      return { error: "Tidak ada respons deskripsi dari AI." };
-    }
-
-    return { deskripsi: hasil };
-  } catch (err) {
-    return { error: err.message || "Gagal menghubungi Gemini API." };
   }
+
+  return {
+    error:
+      lastError ||
+      "Gagal membuat deskripsi dengan Gemini API. Silakan periksa kembali konfigurasi kunci API Anda.",
+  };
 }

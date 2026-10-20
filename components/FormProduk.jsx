@@ -7,7 +7,12 @@ import { buatDeskripsiAI } from "@/app/admin/actions";
 
 // Dipakai untuk tambah produk (US-08) dan ubah produk (US-09).
 // Nama field sama dengan kolom tabel "produk".
-export default function FormProduk({ produk = {}, labelTombol, action }) {
+export default function FormProduk({
+  produk = {},
+  labelTombol,
+  action,
+  geminiTersedia = true,
+}) {
   const [nama, setNama] = useState(produk.nama || "");
   const [kategori, setKategori] = useState(produk.kategori || "");
   const [deskripsi, setDeskripsi] = useState(produk.deskripsi || "");
@@ -15,8 +20,15 @@ export default function FormProduk({ produk = {}, labelTombol, action }) {
   const [pesanErrorAI, setPesanErrorAI] = useState("");
 
   const handleBuatDeskripsiAI = async () => {
+    if (!geminiTersedia) {
+      setPesanErrorAI(
+        "Kunci GEMINI_API_KEY belum terpasang di file .env.local. Tambahkan baris GEMINI_API_KEY=<kunci_api> pada file .env.local untuk mengaktifkan fitur ini."
+      );
+      return;
+    }
+
     if (!nama.trim()) {
-      setPesanErrorAI("Isi nama produk terlebih dahulu.");
+      setPesanErrorAI("Isi nama produk terlebih dahulu sebelum membuat deskripsi AI.");
       return;
     }
 
@@ -31,7 +43,7 @@ export default function FormProduk({ produk = {}, labelTombol, action }) {
         setDeskripsi(res.deskripsi);
       }
     } catch (err) {
-      setPesanErrorAI(err.message || "Gagal membuat deskripsi.");
+      setPesanErrorAI(err.message || "Gagal membuat deskripsi dengan AI.");
     } finally {
       setSedangMembuatAI(false);
     }
@@ -88,7 +100,13 @@ export default function FormProduk({ produk = {}, labelTombol, action }) {
         </div>
 
         {pesanErrorAI && (
-          <p className="text-xs text-bahaya">{pesanErrorAI}</p>
+          <div className="flex flex-col gap-1 rounded-lg border border-garis bg-permukaan p-3 text-xs text-teks-lembut">
+            <div className="flex items-center gap-1.5 font-semibold text-bahaya">
+              <span>⚠️</span>
+              <span>Petunjuk AI</span>
+            </div>
+            <p>{pesanErrorAI}</p>
+          </div>
         )}
 
         <textarea
