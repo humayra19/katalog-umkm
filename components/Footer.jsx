@@ -27,6 +27,12 @@ export default function Footer() {
             Produk favorit
           </Link>
           <Link
+            href="/bandingkan"
+            className="underline underline-offset-4 hover:text-utama"
+          >
+            Bandingkan produk
+          </Link>
+          <Link
             href="/admin"
             className="underline underline-offset-4 hover:text-utama"
           >

@@ -33,6 +33,24 @@ export default function ModalKeranjang() {
     return `https://wa.me/${nomor}?text=${encodeURIComponent(teks)}`;
   };
 
+  const handlePesanKeranjang = () => {
+    // US-40: Catat klik WA untuk setiap item di keranjang tanpa menghambat navigasi
+    items.forEach((item) => {
+      if (item?.id) {
+        try {
+          fetch("/api/klik-wa", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ produk_id: item.id }),
+            keepalive: true,
+          }).catch(() => {});
+        } catch {
+          // Abaikan error jaringan
+        }
+      }
+    });
+  };
+
   return (
     <div
       role="dialog"
@@ -126,6 +144,7 @@ export default function ModalKeranjang() {
               href={buatPesanWhatsApp()}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handlePesanKeranjang}
               className="inline-flex w-full items-center justify-center rounded-lg bg-utama px-5 py-3 font-semibold text-white hover:bg-utama-gelap"
             >
               Pesan Semua via WhatsApp

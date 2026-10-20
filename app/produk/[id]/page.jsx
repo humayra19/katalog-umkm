@@ -6,11 +6,13 @@ import TombolFavoritDetail from "@/components/TombolFavoritDetail";
 import CatatTerakhirDilihat from "@/components/CatatTerakhirDilihat";
 import GaleriFoto from "@/components/GaleriFoto";
 import KartuProduk from "@/components/KartuProduk";
+import DaftarUlasan from "@/components/DaftarUlasan";
 import { createServerClient } from "@/lib/supabase/server";
 import { cariProdukContoh } from "@/lib/data-contoh";
 import { formatRupiah } from "@/lib/format";
 import { toko } from "@/lib/toko";
 import { apakahProdukAktif } from "@/lib/status-produk";
+import { ambilUlasanProduk } from "@/lib/ulasan";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +112,20 @@ export default async function HalamanDetailProduk({ params }) {
     notFound();
   }
 
+  // US-38: Ambil data ulasan produk
+  let daftarUlasan = [];
+  let totalUlasan = 0;
+  let rataRata = 0;
+
+  try {
+    const ulasanData = await ambilUlasanProduk(id, true);
+    daftarUlasan = ulasanData.daftarUlasan;
+    totalUlasan = ulasanData.totalUlasan;
+    rataRata = ulasanData.rataRata;
+  } catch {
+    // Abaikan jika terjadi kendala membaca ulasan
+  }
+
   // US-19: Cek status stok
   const isHabis =
     produk.stok === 0 ||
@@ -150,6 +166,15 @@ export default async function HalamanDetailProduk({ params }) {
             </Link>
 
             <div className="flex items-center gap-2">
+              {/* US-37: Tombol Bandingkan Produk */}
+              <Link
+                href={`/bandingkan?id1=${produk.id}`}
+                className="inline-flex items-center gap-1 rounded-lg border border-garis bg-latar px-2.5 py-1 text-xs font-semibold text-teks transition-colors hover:border-utama hover:text-utama"
+                title="Bandingkan produk ini"
+              >
+                <span>⚖️</span>
+                <span>Bandingkan</span>
+              </Link>
               {/* US-24: Tombol Simpan Favorit */}
               <TombolFavoritDetail produk={produk} />
               {/* US-23: Tombol Bagikan atau Salin Link */}
@@ -160,7 +185,7 @@ export default async function HalamanDetailProduk({ params }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm text-teks-lembut">{produk.kategori}</p>
             {badge && (
               <span
@@ -173,6 +198,14 @@ export default async function HalamanDetailProduk({ params }) {
                 }`}
               >
                 {badge}
+              </span>
+            )}
+            {/* US-38: Rating Bintang Ringkas */}
+            {totalUlasan > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-garis bg-permukaan px-2 py-0.5 text-xs font-semibold text-teks">
+                <span className="text-amber-500">★</span>
+                <span>{rataRata}</span>
+                <span className="text-teks-lembut font-normal">({totalUlasan})</span>
               </span>
             )}
           </div>
@@ -199,6 +232,14 @@ export default async function HalamanDetailProduk({ params }) {
           <TombolWhatsApp produk={produk} stokHabis={isHabis} />
         </div>
       </article>
+
+      {/* US-38: Daftar Ulasan & Form Tulis Ulasan */}
+      <DaftarUlasan
+        produkId={produk.id}
+        daftarUlasan={daftarUlasan}
+        totalUlasan={totalUlasan}
+        rataRata={rataRata}
+      />
 
       {/* US-17: Produk Terkait */}
       {produkTerkait.length > 0 && (

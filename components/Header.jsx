@@ -26,6 +26,12 @@ export default function Header() {
           >
             Tentang Kami
           </Link>
+          <Link
+            href="/bandingkan"
+            className="hidden text-sm font-medium text-teks-lembut transition-colors hover:text-utama md:inline-block"
+          >
+            Bandingkan
+          </Link>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">

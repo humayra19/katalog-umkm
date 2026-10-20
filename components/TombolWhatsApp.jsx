@@ -52,6 +52,22 @@ export default function TombolWhatsApp({
     );
   }
 
+  const handleKlikPesan = () => {
+    // US-40: Catat klik WA secara asinkron tanpa menghambat navigasi
+    if (produk?.id) {
+      try {
+        fetch("/api/klik-wa", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ produk_id: produk.id }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {
+        // Abaikan error jaringan
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-4">
@@ -120,6 +136,7 @@ export default function TombolWhatsApp({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleKlikPesan}
             className="inline-flex flex-1 items-center justify-center rounded-lg bg-utama px-5 py-3 font-semibold text-white hover:bg-utama-gelap sm:flex-initial"
           >
             Pesan via WhatsApp

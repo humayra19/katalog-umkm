@@ -4,6 +4,8 @@ import TabelProduk from "@/components/TabelProduk";
 import Tombol from "@/components/Tombol";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { apakahProdukAktif } from "@/lib/status-produk";
+import { formatRupiah } from "@/lib/format";
+import { ambilProdukTerlaris } from "@/lib/klik-wa";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +39,9 @@ export default async function HalamanAdmin({ searchParams }) {
     hitunganKategori[k] = (hitunganKategori[k] || 0) + 1;
   });
   const daftarNamaKategori = Object.keys(hitunganKategori);
+
+  // US-41: Ambil 5 produk terlaris berdasarkan pencatatan klik WhatsApp
+  const produkTerlaris = await ambilProdukTerlaris(5);
 
   // 2. Query produk dengan pencarian dan paginasi (US-33)
   let query = supabase.from("produk").select("*", { count: "exact" });
@@ -132,6 +137,86 @@ export default async function HalamanAdmin({ searchParams }) {
             )}
           </div>
         </div>
+      </section>
+
+      {/* US-41: Widget 5 Produk Terlaris berdasarkan Pesanan WhatsApp */}
+      <section
+        aria-label="5 Produk Terlaris"
+        className="rounded-2xl border border-garis bg-permukaan p-5"
+      >
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-bold text-teks flex items-center gap-2">
+              <span>🔥</span>
+              <span>5 Produk Terlaris</span>
+            </h2>
+            <p className="text-xs text-teks-lembut">
+              Berdasarkan frekuensi klik tombol pemesanan WhatsApp oleh pengunjung toko
+            </p>
+          </div>
+          <span className="text-xs text-teks-lembut font-medium">
+            Diperbarui secara realtime
+          </span>
+        </div>
+
+        {produkTerlaris.length === 0 ? (
+          <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-dashed border-garis bg-latar p-6 text-center">
+            <span className="text-2xl">📊</span>
+            <p className="mt-2 text-xs font-semibold text-teks">
+              Belum ada data pemesanan WhatsApp yang tercatat
+            </p>
+            <p className="mt-0.5 text-[11px] text-teks-lembut">
+              Data produk terlaris akan otomatis terhitung dan muncul di sini ketika pengunjung mengklik tombol pesan WhatsApp.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {produkTerlaris.map((item, index) => (
+              <div
+                key={item.id}
+                className="relative flex flex-col justify-between overflow-hidden rounded-xl border border-garis bg-latar p-3 transition-shadow hover:shadow-xs"
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                      index === 0
+                        ? "bg-amber-400 text-amber-950 font-bold"
+                        : index === 1
+                        ? "bg-slate-300 text-slate-800"
+                        : index === 2
+                        ? "bg-amber-700/30 text-amber-900 dark:text-amber-200"
+                        : "bg-garis text-teks-lembut"
+                    }`}
+                  >
+                    #{index + 1}
+                  </span>
+                  <div className="flex flex-col min-w-0">
+                    <Link
+                      href={`/produk/${item.id}`}
+                      className="font-bold text-xs text-teks hover:text-utama line-clamp-1"
+                      title={item.nama}
+                    >
+                      {item.nama}
+                    </Link>
+                    <span className="text-[11px] text-teks-lembut">
+                      {item.kategori}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between border-t border-garis pt-2">
+                  <span className="text-xs font-bold text-harga">
+                    {formatRupiah(item.harga)}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-utama/10 px-2 py-0.5 text-[11px] font-bold text-utama">
+                    <span>💬</span>
+                    <span>{item.totalKlik} klik</span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Header Tabel Produk & Aksi Cepat */}

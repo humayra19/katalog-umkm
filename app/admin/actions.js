@@ -9,6 +9,11 @@ import {
   hapusKategori as hapusKategoriDb,
 } from "@/lib/kategori";
 import { setStatusProduk } from "@/lib/status-produk";
+import {
+  simpanUlasanBaru,
+  toggleHiddenUlasan,
+  hapusUlasanDb,
+} from "@/lib/ulasan";
 
 export async function login(prevStateOrFormData, maybeFormData) {
   const formData =
@@ -437,6 +442,96 @@ export async function hapusKategoriAction(formData) {
   revalidatePath("/admin/produk/baru");
   revalidatePath("/admin");
   revalidatePath("/");
+}
+
+// US-38: Tambah ulasan produk dengan validasi & honeypot anti-spam
+export async function tambahUlasanAction(prevState, formData) {
+  // 1. Cek honeypot anti-spam
+  const honeypot = formData.get("website_url")?.toString().trim();
+  if (honeypot) {
+    return { error: "Pengiriman ulasan ditolak oleh sistem keamanan." };
+  }
+
+  const produkId = formData.get("produk_id")?.toString();
+  const nama = formData.get("nama")?.toString().trim();
+  const ratingRaw = formData.get("rating")?.toString();
+  const rating = parseInt(ratingRaw, 10);
+  const komentar = formData.get("komentar")?.toString().trim();
+
+  if (!produkId) {
+    return { error: "ID produk tidak valid." };
+  }
+  if (!nama || nama.length > 50) {
+    return { error: "Nama wajib diisi (maksimal 50 karakter)." };
+  }
+  if (isNaN(rating) || rating < 1 || rating > 5) {
+    return { error: "Rating harus bernilai antara 1 sampai 5 bintang." };
+  }
+  if (!komentar || komentar.length < 3 || komentar.length > 500) {
+    return { error: "Komentar ulasan minimal 3 karakter dan maksimal 500 karakter." };
+  }
+
+  try {
+    await simpanUlasanBaru({
+      produk_id: produkId,
+      nama,
+      rating,
+      komentar,
+    });
+
+    revalidatePath(`/produk/${produkId}`);
+    revalidatePath("/admin/ulasan");
+    return { sukses: "Ulasan Anda berhasil dikirim dan ditampilkan!" };
+  } catch (err) {
+    return { error: err.message || "Gagal menyimpan ulasan." };
+  }
+}
+
+// US-39: Moderasi ulasan (sembunyikan / tampilkan)
+export async function toggleSembunyikanUlasanAction(formData) {
+  const supabase = await createAdminClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Unauthorized: Anda harus masuk terlebih dahulu.");
+  }
+
+  const id = formData.get("id")?.toString();
+  const targetHidden = formData.get("target_hidden")?.toString() === "true";
+  const produkId = formData.get("produk_id")?.toString();
+
+  if (!id) throw new Error("ID ulasan tidak valid.");
+
+  await toggleHiddenUlasan(id, targetHidden);
+
+  revalidatePath("/admin/ulasan");
+  if (produkId) revalidatePath(`/produk/${produkId}`);
+}
+
+// US-39: Hapus ulasan oleh admin
+export async function hapusUlasanAction(formData) {
+  const supabase = await createAdminClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Unauthorized: Anda harus masuk terlebih dahulu.");
+  }
+
+  const id = formData.get("id")?.toString();
+  const produkId = formData.get("produk_id")?.toString();
+
+  if (!id) throw new Error("ID ulasan tidak valid.");
+
+  await hapusUlasanDb(id);
+
+  revalidatePath("/admin/ulasan");
+  if (produkId) revalidatePath(`/produk/${produkId}`);
 }
 
 export async function buatDeskripsiAI(nama, kategori) {
