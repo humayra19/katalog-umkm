@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { formatRupiah } from "@/lib/format";
 import { useKeranjang } from "@/components/KeranjangContext";
+import { useFavorit } from "@/components/FavoritContext";
 
 export default function KartuProduk({ produk }) {
   const { tambahItem } = useKeranjang();
+  const { isFavorit, toggleFavorit } = useFavorit();
 
   const isHabis =
     produk.stok === 0 ||
@@ -24,12 +26,20 @@ export default function KartuProduk({ produk }) {
     ? "Habis"
     : produk.badge || (produk.is_terlaris ? "Terlaris" : produk.is_baru ? "Baru" : null);
 
+  const disukai = isFavorit(produk.id);
+
   const handleTambahKeranjang = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isHabis) {
       tambahItem(produk, 1, "Standar");
     }
+  };
+
+  const handleFavorit = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorit(produk);
   };
 
   return (
@@ -50,6 +60,21 @@ export default function KartuProduk({ produk }) {
           {badge}
         </span>
       )}
+
+      {/* US-24: Tombol Favorit */}
+      <button
+        type="button"
+        onClick={handleFavorit}
+        className={`absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-garis bg-latar/90 backdrop-blur-xs transition-colors hover:scale-105 ${
+          disukai
+            ? "border-bahaya/40 text-bahaya"
+            : "text-teks-lembut hover:text-bahaya"
+        }`}
+        aria-label={disukai ? "Hapus dari favorit" : "Tambah ke favorit"}
+        title={disukai ? "Hapus dari favorit" : "Tambah ke favorit"}
+      >
+        <span className="text-base leading-none">{disukai ? "♥" : "♡"}</span>
+      </button>
 
       <img
         src={produk.foto_url}

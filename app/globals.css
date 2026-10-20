@@ -22,6 +22,22 @@
   --color-bahaya: #b42318;
 }
 
+html.dark {
+  --color-latar: #121815;
+  --color-permukaan: #1b2420;
+  --color-garis: #2c3a32;
+  --color-teks: #e8efe9;
+  --color-teks-lembut: #96a89d;
+
+  --color-utama: #2ea87c;
+  --color-utama-gelap: #238461;
+
+  --color-harga: #f3ca7e;
+  --color-harga-latar: #3b2a0c;
+
+  --color-bahaya: #f06155;
+}
+
 html {
   color: var(--color-teks);
   background: var(--color-latar);

@@ -1,13 +1,73 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import TombolWhatsApp from "@/components/TombolWhatsApp";
+import TombolBagikan from "@/components/TombolBagikan";
+import TombolFavoritDetail from "@/components/TombolFavoritDetail";
 import GaleriFoto from "@/components/GaleriFoto";
 import KartuProduk from "@/components/KartuProduk";
 import { createServerClient } from "@/lib/supabase/server";
 import { cariProdukContoh } from "@/lib/data-contoh";
 import { formatRupiah } from "@/lib/format";
+import { toko } from "@/lib/toko";
 
 export const dynamic = "force-dynamic";
+
+// US-26: generateMetadata untuk SEO dan Open Graph
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  let produk = null;
+
+  try {
+    const supabase = createServerClient();
+    const { data } = await supabase
+      .from("produk")
+      .select("nama, deskripsi, foto_url, harga, kategori")
+      .eq("id", id)
+      .single();
+    produk = data;
+  } catch {
+    // Abaikan jika database error
+  }
+
+  if (!produk) {
+    produk = cariProdukContoh(id);
+  }
+
+  if (!produk) {
+    return {
+      title: `Produk Tidak Ditemukan - ${toko.nama}`,
+      description: "Produk yang Anda cari tidak tersedia di katalog.",
+    };
+  }
+
+  const judul = `${produk.nama} | ${toko.nama}`;
+  const deskripsi =
+    produk.deskripsi ||
+    `Pesan ${produk.nama} (${produk.kategori || "Produk"}) dengan harga terbaik di ${toko.nama}. Pesan mudah langsung via WhatsApp.`;
+  const foto = produk.foto_url || "/icons/icon-512x512.png";
+
+  return {
+    title: judul,
+    description: deskripsi,
+    openGraph: {
+      title: judul,
+      description: deskripsi,
+      images: [
+        {
+          url: foto,
+          alt: produk.nama,
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: judul,
+      description: deskripsi,
+      images: [foto],
+    },
+  };
+}
 
 export default async function HalamanDetailProduk({ params }) {
   const { id } = await params;
@@ -74,12 +134,24 @@ export default async function HalamanDetailProduk({ params }) {
         />
 
         <div className="flex flex-col gap-4">
-          <Link
-            href="/"
-            className="text-sm text-teks-lembut underline underline-offset-4 hover:text-utama"
-          >
-            Kembali ke katalog
-          </Link>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link
+              href="/"
+              className="text-sm text-teks-lembut underline underline-offset-4 hover:text-utama"
+            >
+              ← Kembali ke katalog
+            </Link>
+
+            <div className="flex items-center gap-2">
+              {/* US-24: Tombol Simpan Favorit */}
+              <TombolFavoritDetail produk={produk} />
+              {/* US-23: Tombol Bagikan atau Salin Link */}
+              <TombolBagikan
+                judul={produk.nama}
+                teks={`Beli ${produk.nama} di ${toko.nama}`}
+              />
+            </div>
+          </div>
 
           <div className="flex items-center gap-2">
             <p className="text-sm text-teks-lembut">{produk.kategori}</p>

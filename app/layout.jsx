@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { toko } from "@/lib/toko";
 import { KeranjangProvider } from "@/components/KeranjangContext";
+import { FavoritProvider } from "@/components/FavoritContext";
 import ModalKeranjang from "@/components/ModalKeranjang";
 
 export const metadata = {
@@ -13,7 +14,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -21,14 +22,22 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
         />
+        {/* Pencegah FOUC (Flash of Unstyled Content) saat mode gelap */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("tema");if(t==="dark"||(!t&&window.matchMedia("(prefers-color-scheme: dark)").matches)){document.documentElement.classList.add("dark")}}catch(e){}})()`,
+          }}
+        />
       </head>
       <body className="flex min-h-screen flex-col font-sans antialiased">
-        <KeranjangProvider>
-          <Header />
-          <main className="mx-auto w-full max-w-5xl flex-1 px-4">{children}</main>
-          <Footer />
-          <ModalKeranjang />
-        </KeranjangProvider>
+        <FavoritProvider>
+          <KeranjangProvider>
+            <Header />
+            <main className="mx-auto w-full max-w-5xl flex-1 px-4">{children}</main>
+            <Footer />
+            <ModalKeranjang />
+          </KeranjangProvider>
+        </FavoritProvider>
       </body>
     </html>
   );
