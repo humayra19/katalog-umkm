@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "judul": "Promo Spesial Pelanggan Setia",
+    "teks": "Nikmati produk UMKM pilihan berkualitas dengan harga terbaik. Pesan langsung via WhatsApp!",
+    "gambar_url": "/produk/kopi.svg",
+    "tautan": "#katalog",
+    "is_active": true,
+    "created_at": "2026-10-20T10:00:00.000Z"
+  }
+]
+
