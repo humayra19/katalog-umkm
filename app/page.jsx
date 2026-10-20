@@ -108,7 +108,7 @@ export default async function HalamanKatalog({ searchParams }) {
           </h2>
 
           {/* Form Pencarian & Urutan (US-11 & US-15) */}
-          <form method="GET" action="/" className="flex flex-wrap items-center gap-2">
+          <form method="GET" action="/" className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {kategoriAktif && kategoriAktif !== "Semua" && (
               <input type="hidden" name="kategori" value={kategoriAktif} />
             )}
@@ -117,31 +117,33 @@ export default async function HalamanKatalog({ searchParams }) {
               name="cari"
               defaultValue={kataKunci}
               placeholder="Cari nama produk..."
-              className="rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks placeholder:text-teks-lembut focus:border-utama focus:outline-none sm:w-56"
+              className="w-full rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks placeholder:text-teks-lembut focus:border-utama focus:outline-none sm:w-56"
             />
-            <select
-              name="urutan"
-              defaultValue={urutanAktif}
-              className="rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks focus:border-utama focus:outline-none"
-            >
-              <option value="terbaru">Terbaru</option>
-              <option value="termurah">Termurah</option>
-              <option value="termahal">Termahal</option>
-            </select>
-            <button
-              type="submit"
-              className="inline-flex items-center justify-center rounded-lg bg-utama px-4 py-2 text-sm font-semibold text-white hover:bg-utama-gelap"
-            >
-              Terapkan
-            </button>
-            {(kataKunci || (kategoriAktif && kategoriAktif !== "Semua") || urutanAktif !== "terbaru") && (
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center rounded-lg border border-garis bg-latar px-4 py-2 text-sm font-semibold text-teks hover:border-utama hover:text-utama"
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                name="urutan"
+                defaultValue={urutanAktif}
+                className="flex-1 rounded-lg border border-garis bg-latar px-3 py-2 text-sm text-teks focus:border-utama focus:outline-none sm:flex-initial"
               >
-                Reset
-              </Link>
-            )}
+                <option value="terbaru">Terbaru</option>
+                <option value="termurah">Termurah</option>
+                <option value="termahal">Termahal</option>
+              </select>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center rounded-lg bg-utama px-4 py-2 text-sm font-semibold text-white hover:bg-utama-gelap"
+              >
+                Terapkan
+              </button>
+              {(kataKunci || (kategoriAktif && kategoriAktif !== "Semua") || urutanAktif !== "terbaru") && (
+                <Link
+                  href="/"
+                  className="inline-flex items-center justify-center rounded-lg border border-garis bg-latar px-4 py-2 text-sm font-semibold text-teks hover:border-utama hover:text-utama"
+                >
+                  Reset
+                </Link>
+              )}
+            </div>
           </form>
         </div>
 

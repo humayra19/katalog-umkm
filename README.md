@@ -74,7 +74,28 @@ Urutan yang disarankan: US-01, US-02, US-03, US-04, US-05, US-06, lalu fitur bon
 
 ## Tentang aplikasi ini
 
-- **Nama usaha:**
-- **Pembuat:**
-- **Link aplikasi:**
+- **Nama usaha:** Toko Hyuma
+- **Pembuat:** Tim Pengembang Katalog UMKM
+- **Link aplikasi:** https://katalog-umkm.vercel.app
+- **Deskripsi:** Aplikasi katalog produk UMKM modern berbasis Next.js 16 dan Supabase yang cepat, aman, dan responsif. Pengunjung dapat menelusuri produk, melakukan pencarian dan filter kategori, memilih varian/jumlah barang, menandai produk favorit, beralih ke mode gelap, serta memesan barang langsung secara otomatis melalui WhatsApp. Pemilik toko dapat mengelola katalog dan mengganti password secara aman di dashboard admin yang dilindungi autentikasi ketat di sisi server.
 - **Fitur bonus yang dikerjakan:**
+  - **US-07:** Daftar produk admin langsung dari database Supabase
+  - **US-08:** Form tambah produk baru admin dengan verifikasi sesi server
+  - **US-09:** Form ubah data produk terisi data lama
+  - **US-10:** Hapus produk dengan dialog konfirmasi keamanan
+  - **US-11:** Filter kategori dinamis dan pencarian produk langsung via database
+  - **US-12:** Pemilihan varian dan kuantiti pada pemesanan WhatsApp
+  - **US-13:** Dukungan PWA (Progressive Web App) dengan Web Manifest
+  - **US-14:** Pembuatan deskripsi produk otomatis bertenaga Google Gemini AI
+  - **US-15:** Pengurutan produk (termurah, termahal, terbaru)
+  - **US-16:** Paginasi katalog produk di sisi server
+  - **US-17:** Rekomendasi produk terkait berdasarkan kategori yang sama
+  - **US-18:** Galeri foto produk dengan thumbnail interaktif
+  - **US-19:** Indikator dan badge status stok habis
+  - **US-20:** Harga coret diskon dan badge "Baru" / "Terlaris"
+  - **US-21:** Keranjang belanja multi-produk dengan pemesanan serentak via WhatsApp
+  - **US-22:** Halaman profil toko, jam operasional, dan kontak resmi (`/tentang`)
+  - **US-23:** Tombol bagikan atau salin tautan produk dengan umpan balik cepat
+  - **US-24:** Daftar produk favorit tersimpan di browser (`/favorit`)
+  - **US-25:** Mode gelap (Dark Mode) responsif dan bebas flicker
+  - **US-26:** Optimasi SEO dan Open Graph metadata dinamis
